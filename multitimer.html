@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Custom Multi‑Timer</title>
+<style>
+    body { font-family: Arial; padding: 20px; max-width: 700px; }
+    .timer { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+    button { margin-top: 10px; }
+    #display { font-size: 40px; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<h2>Timers</h2>
+<div id="timers"></div>
+<button onclick="addTimer()">Add Timer</button>
+
+<hr>
+
+<button onclick="startAll()">Start Sequence</button>
+
+<div id="display">00:00</div>
+
+<script>
+function speak(text) {
+    if (!text) return;
+    const msg = new SpeechSynthesisUtterance(text);
+    speechSynthesis.speak(msg);
+}
+
+function addTimer() {
+    const div = document.createElement("div");
+    div.className = "timer";
+
+    div.innerHTML = `
+        <label>Duration (sec): 
+            <input type="number" class="tTime" value="10">
+        </label><br>
+
+        <label>Start Phrase: 
+            <input type="text" class="tStart" value="Starting">
+        </label><br>
+
+        <label>End Phrase: 
+            <input type="text" class="tEnd" value="Done">
+        </label><br>
+
+        <label>
+            <input type="checkbox" class="tAnnounce">
+            Announce each minute
+        </label><br>
+
+        <button onclick="this.parentElement.remove()">Remove</button>
+    `;
+
+    document.getElementById("timers").appendChild(div);
+}
+
+function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+async function runTimer(seconds, startPhrase, endPhrase, announceMinutes) {
+    // Start phrase
+    speak(startPhrase);
+
+    return new Promise(resolve => {
+        let remaining = seconds;
+        document.getElementById("display").textContent = formatTime(remaining);
+
+        const interval = setInterval(() => {
+            remaining--;
+            document.getElementById("display").textContent = formatTime(remaining);
+
+            if (announceMinutes && remaining > 0 && remaining % 60 === 0) {
+                speak(`${remaining / 60} minutes remaining`);
+            }
+
+            if (remaining <= 0) {
+                clearInterval(interval);
+                speak(endPhrase);
+                resolve();
+            }
+        }, 1000);
+    });
+}
+
+async function startAll() {
+    speechSynthesis.cancel();
+
+    const timers = [...document.querySelectorAll(".timer")].map(t => ({
+        time: parseInt(t.querySelector(".tTime").value),
+        start: t.querySelector(".tStart").value,
+        end: t.querySelector(".tEnd").value,
+        announce: t.querySelector(".tAnnounce").checked
+    }));
+
+    for (const t of timers) {
+        await runTimer(t.time, t.start, t.end, t.announce);
+    }
+}
+</script>
+
+</body>
+</html>
