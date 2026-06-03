@@ -67,6 +67,8 @@
     <button onclick="deletePreset()">Delete Preset</button>
     <button onclick="exportPreset()">Export Preset</button>
     <button onclick="importPreset()">Import Preset</button>
+
+    <button onclick="loadDefaultPreset('Enbu')" style="float:right;">Load Enbu</button>
 </div>
 
 <hr>
@@ -496,6 +498,33 @@ function importPreset() {
     localStorage.setItem('timerPresets', JSON.stringify(all));
     loadPresetDropdown();
     alert("Preset imported.");
+}
+
+function loadDefaultPreset(name){
+    let json = "";
+    switch (name)
+    {
+        case "Enbu":
+            json = `[{"title":"Preparation","time":10,"color":"#ffffff","startText":"","endText":"","announce":false,"announceText":"minutes remaining","voice":""},{"title":"Walk In","time":10,"color":"#b8b8b8","startText":"入場","endText":"始め","announce":false,"announceText":"minutes remaining","voice":"Google 日本語"},{"title":"Enbu","time":360,"color":"#a3ffa5","startText":"","endText":"","announce":true,"announceText":"minutes remaining","voice":"Google UK English Female"},{"title":"Finish","time":10,"color":"#ff0000","startText":"","endText":"退場","announce":false,"announceText":"minutes remaining","voice":"Google 日本語"}]`;
+            break;
+    }
+    let preset;
+    try {
+        preset = JSON.parse(json);
+        if (!Array.isArray(preset)) throw new Error();
+    } catch {
+        alert("Invalid JSON.");
+        return;
+    }
+    const all = JSON.parse(localStorage.getItem('timerPresets') || '{}');
+    all[name] = preset;
+    localStorage.setItem('timerPresets', JSON.stringify(all));
+    loadPresetDropdown();
+    
+    stopAll();
+    document.getElementById('timers').innerHTML = '';
+    preset.forEach(cfg => addTimer(cfg));
+    loadVoices();
 }
 
 /* ---------------------------------------------------------
