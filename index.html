@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Multi Timer</title>
+<style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: auto; }
+    .timer { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 6px; }
+    .timer h3 { margin-top: 0; }
+    label { display: block; margin: 4px 0; }
+    button { margin-left: 4px; }
+
+    #displayTitle {
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        margin-top: 10px;
+    }
+
+    #display {
+        width: 100%;
+        font-size: 64px;
+        text-align: center;
+        padding: 20px;
+        margin-top: 5px;
+        color: #000;
+        background: #f0f0f0;
+        cursor: pointer;
+        user-select: none;
+        box-sizing: border-box;
+        border-radius: 8px;
+    }
+
+    #progressContainer {
+        width: 100%;
+        height: 20px;
+        background: #ddd;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-top: 8px;
+    }
+
+    #progressBar {
+        height: 100%;
+        width: 0%;
+        background: rgba(0,0,0,0.3);
+        transition: width 0.3s linear;
+    }
+</style>
+</head>
+<body>
+
+<hr>
+<div id="displayTitle"></div>
+<div id="display">00:00</div>
+<div id="progressContainer">
+    <div id="progressBar"></div>
+</div>
+
+<hr>
+
+<h2>Timer Presets</h2>
+<div>
+    <button onclick="savePreset()">Save Preset</button>
+    <select id="presetSelect"></select>
+    <button onclick="loadPreset()">Load Preset</button>
+    <button onclick="deletePreset()">Delete Preset</button>
+    <button onclick="exportPreset()">Export Preset</button>
+    <button onclick="importPreset()">Import Preset</button>
+</div>
+
+<hr>
+
+<h2>Timers</h2>
+<div id="timers"></div>
+<button onclick="addTimer()">Add Timer</button>
+
+<script>
+/* ---------------------------------------------------------
+   GLOBALS
+--------------------------------------------------------- */
+let voices = [];
+let timersConfig = [];
+let currentIndex = -1;
+let intervalId = null;
+let isRunning = false;
+let remaining = 0;
+let total = 0;
+let clickTimeout = null;
+
+/* ---------------------------------------------------------
+   VOICE LOADING
+--------------------------------------------------------- */
+function loadVoices() {
+    voices = speechSynthesis.getVoices();
+    document.querySelectorAll('.voiceSelect').forEach(sel => {
+        const selected = sel.getAttribute('data-selected') || '';
+        populateVoiceSelect(sel, selected);
+    });
+}
+speechSynthesis.onvoiceschanged = loadVoices;
+window.addEventListener('load', () => {
+    loadVoices();
+    loadPresetDropdown();
+});
+
+/* ---------------------------------------------------------
+   POPULATE VOICE DROPDOWN
+--------------------------------------------------------- */
+function populateVoiceSelect(select, selectedName) {
+    select.innerHTML = '';
+    const optDefault = document.createElement('option');
+    optDefault.value = '';
+    optDefault.textContent = 'Default voice';
+    select.appendChild(optDefault);
+
+    voices.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang})`;
+        if (v.name === selectedName) opt.selected = true;
+        select.appendChild(opt);
+    });
+}
+
+/* ---------------------------------------------------------
+   TTS SPEAK
+--------------------------------------------------------- */
+function speak(text, voiceName) {
+    if (!text) return;
+    const msg = new SpeechSynthesisUtterance(text);
+    if (voiceName) {
+        const v = voices.find(x => x.name === voiceName);
+        if (v) msg.voice = v;
+    }
+    speechSynthesis.speak(msg);
+}
+
+/* ---------------------------------------------------------
+   ADD TIMER UI
+--------------------------------------------------------- */
+function addTimer(config) {
+    const div = document.createElement('div');
+    div.className = 'timer';
+
+    div.innerHTML = `
+        <label>
+            <input type="text" class="tTitle" placeholder="Timer" value="${config?.title ?? ''}">
+        </label>
+
+        <label>Duration (sec):
+            <input type="number" class="tTime" value="${config?.time ?? 60}">
+        </label>
+
+        <label>Background color:
+            <input type="color" class="tColor" value="${config?.color ?? '#ffffff'}">
+        </label>
+
+        <label>
+            Voice:
+            <select class="voiceSelect" data-selected="${config?.voice ?? ''}"></select>
+        </label>
+
+        <label>Start Prompt:
+            <input type="text" class="tStartText" placeholder="Start" value="${config?.startText ?? ''}">
+            <button class="playStart">▶</button>
+        </label>
+
+        <label>End Prompt:
+            <input type="text" class="tEndText" placeholder="Finish" value="${config?.endText ?? ''}">
+            <button class="playEnd">▶</button>
+        </label>
+
+        <h4>Minute Reminder</h4>
+        <label>
+            <input type="checkbox" class="tAnnounce" ${config?.announce ? 'checked' : ''}>
+            Announce each minute
+        </label>
+        <label>Reminder text:
+            <input type="text" class="tAnnounceText" value="${config?.announceText ?? 'minutes remaining'}">
+            <button class="playAnnounce">▶</button>
+        </label>
+
+        <button onclick="this.parentElement.remove()">Remove</button>
+    `;
+
+    document.getElementById('timers').appendChild(div);
+    populateVoiceSelect(div.querySelector('.voiceSelect'), config?.voice ?? '');
+
+    div.querySelector('.playStart').onclick = () => {
+        const txt = div.querySelector('.tStartText').value;
+        const voice = div.querySelector('.voiceSelect').value;
+        speak(txt, voice);
+    };
+
+    div.querySelector('.playEnd').onclick = () => {
+        const txt = div.querySelector('.tEndText').value;
+        const voice = div.querySelector('.voiceSelect').value;
+        speak(txt, voice);
+    };
+
+    div.querySelector('.playAnnounce').onclick = () => {
+        const txt = div.querySelector('.tAnnounceText').value;
+        const voice = div.querySelector('.voiceSelect').value;
+        speak(`1 ${txt}`, voice);
+    };
+}
+
+/* ---------------------------------------------------------
+   COLLECT TIMERS FOR RUNTIME
+--------------------------------------------------------- */
+function collectTimersFromDOM() {
+    const list = [];
+    document.querySelectorAll('.timer').forEach(t => {
+        list.push({
+            title: t.querySelector('.tTitle').value,
+            time: parseInt(t.querySelector('.tTime').value),
+            color: t.querySelector('.tColor').value,
+
+            startText: t.querySelector('.tStartText').value,
+            endText: t.querySelector('.tEndText').value,
+
+            announce: t.querySelector('.tAnnounce').checked,
+            announceText: t.querySelector('.tAnnounceText').value,
+            voice: t.querySelector('.voiceSelect').value
+        });
+    });
+    return list;
+}
+
+/* ---------------------------------------------------------
+   COLLECT TIMERS FOR PRESET SAVE
+--------------------------------------------------------- */
+function collectTimersForSave() {
+    const list = [];
+    document.querySelectorAll('.timer').forEach(t => {
+        list.push({
+            title: t.querySelector('.tTitle').value,
+            time: parseInt(t.querySelector('.tTime').value),
+            color: t.querySelector('.tColor').value,
+
+            startText: t.querySelector('.tStartText').value,
+            endText: t.querySelector('.tEndText').value,
+
+            announce: t.querySelector('.tAnnounce').checked,
+            announceText: t.querySelector('.tAnnounceText').value,
+            voice: t.querySelector('.voiceSelect').value
+        });
+    });
+    return list;
+}
+
+/* ---------------------------------------------------------
+   DISPLAY + PROGRESS
+--------------------------------------------------------- */
+function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function updateDisplay() {
+    document.getElementById('display').textContent = formatTime(remaining);
+    const pct = total > 0 ? ((total - remaining) / total) * 100 : 0;
+    document.getElementById('progressBar').style.width = pct + '%';
+}
+
+function applyTimerVisual(timer) {
+    document.getElementById('display').style.background = timer.color;
+    document.getElementById('displayTitle').textContent = timer.title;
+}
+
+/* ---------------------------------------------------------
+   PROMPTS
+--------------------------------------------------------- */
+function playPrompt(timer, type) {
+    const text = type === 'start' ? timer.startText : timer.endText;
+    speak(text, timer.voice);
+}
+
+/* ---------------------------------------------------------
+   TIMER ENGINE
+--------------------------------------------------------- */
+function startTimer(index) {
+    if (index >= timersConfig.length) {
+        stopAll();
+        return;
+    }
+
+    currentIndex = index;
+    const timer = timersConfig[index];
+
+    total = timer.time;
+    remaining = timer.time;
+
+    applyTimerVisual(timer);
+    playPrompt(timer, 'start');
+    updateDisplay();
+
+    clearInterval(intervalId);
+    intervalId = setInterval(() => {
+        remaining--;
+        if (remaining < 0) remaining = 0;
+        updateDisplay();
+
+        if (timer.announce && remaining > 0 && remaining % 60 === 0) {
+            speak(`${remaining / 60} ${timer.announceText}`, timer.voice);
+        }
+
+        if (remaining <= 0) {
+            clearInterval(intervalId);
+            playPrompt(timer, 'end');
+            startTimer(index + 1);
+        }
+    }, 1000);
+
+    isRunning = true;
+}
+
+function stopAll() {
+    clearInterval(intervalId);
+    intervalId = null;
+    isRunning = false;
+    currentIndex = -1;
+    remaining = 0;
+    total = 0;
+    document.getElementById('displayTitle').textContent = '';
+    updateDisplay();
+}
+
+function pauseTimers() {
+    clearInterval(intervalId);
+    intervalId = null;
+    isRunning = false;
+}
+
+function resumeTimers() {
+    if (currentIndex < 0) return startSequence(true);
+
+    const timer = timersConfig[currentIndex];
+    clearInterval(intervalId);
+
+    intervalId = setInterval(() => {
+        remaining--;
+        if (remaining < 0) remaining = 0;
+        updateDisplay();
+
+        if (timer.announce && remaining > 0 && remaining % 60 === 0) {
+            speak(`${remaining / 60} ${timer.announceText}`, timer.voice);
+        }
+
+        if (remaining <= 0) {
+            clearInterval(intervalId);
+            playPrompt(timer, 'end');
+            startTimer(currentIndex + 1);
+        }
+    }, 1000);
+
+    isRunning = true;
+}
+
+function startSequence(fromBeginning) {
+    speechSynthesis.cancel();
+
+    if (fromBeginning) {
+        timersConfig = collectTimersFromDOM();
+        if (!timersConfig.length) return;
+        startTimer(0);
+    } else {
+        resumeTimers();
+    }
+}
+
+/* ---------------------------------------------------------
+   DISPLAY CLICK / DOUBLE-CLICK
+--------------------------------------------------------- */
+const displayEl = document.getElementById('display');
+displayEl.title = "Press to start/pause, double press to reset";
+displayEl.addEventListener('click', () => {
+    if (clickTimeout) return;
+    clickTimeout = setTimeout(() => {
+        clickTimeout = null;
+        if (!isRunning && currentIndex === -1) {
+            startSequence(true);
+            return;
+        }
+        if (isRunning) pauseTimers();
+        else resumeTimers();
+    }, 250);
+});
+
+displayEl.addEventListener('dblclick', () => {
+    if (clickTimeout) {
+        clearTimeout(clickTimeout);
+        clickTimeout = null;
+    }
+    if (confirm('Reset timers to the beginning?')) {
+        resetAll();
+    }
+});
+
+function resetAll() {
+    stopAll();
+    timersConfig = collectTimersFromDOM();
+    updateDisplay();
+    document.getElementById('display').style.background = '#fff';
+    document.getElementById('displayTitle').textContent = '';
+}
+
+/* ---------------------------------------------------------
+   PRESETS
+--------------------------------------------------------- */
+function savePreset() {
+    const name = prompt("Enter preset name:");
+    if (!name) return;
+
+    const configs = collectTimersForSave();
+    const all = JSON.parse(localStorage.getItem('timerPresets') || '{}');
+    all[name] = configs;
+
+    localStorage.setItem('timerPresets', JSON.stringify(all));
+    loadPresetDropdown();
+    alert("Preset saved.");
+}
+
+function loadPresetDropdown() {
+    const select = document.getElementById('presetSelect');
+    select.innerHTML = '';
+
+    const all = JSON.parse(localStorage.getItem('timerPresets') || '{}');
+    Object.keys(all).forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+    });
+}
+
+function loadPreset() {
+    const name = document.getElementById('presetSelect').value;
+    if (!name) return;
+
+    const all = JSON.parse(localStorage.getItem('timerPresets') || '{}');
+    const preset = all[name];
+    if (!preset) return;
+
+    stopAll();
+    document.getElementById('timers').innerHTML = '';
+    preset.forEach(cfg => addTimer(cfg));
+    loadVoices();
+}
+
+function deletePreset() {
+    const name = document.getElementById('presetSelect').value;
+    if (!name) return;
+
+    const all = JSON.parse(localStorage.getItem('timerPresets') || '{}');
+    delete all[name];
+    localStorage.setItem('timerPresets', JSON.stringify(all));
+    loadPresetDropdown();
+    alert("Preset deleted.");
+}
+
+function exportPreset() {
+    const name = document.getElementById('presetSelect').value;
+    if (!name) {
+        alert("Select a preset to export.");
+        return;
+    }
+    const all = JSON.parse(localStorage.getItem('timerPresets') || '{}');
+    const preset = all[name];
+    if (!preset) {
+        alert("Preset not found.");
+        return;
+    }
+    const json = JSON.stringify(preset);
+    prompt("Copy this preset JSON:", json);
+}
+
+function importPreset() {
+    const json = prompt("Paste preset JSON:");
+    if (!json) return;
+    let preset;
+    try {
+        preset = JSON.parse(json);
+        if (!Array.isArray(preset)) throw new Error();
+    } catch {
+        alert("Invalid JSON.");
+        return;
+    }
+    const name = prompt("Enter name for imported preset:");
+    if (!name) return;
+
+    const all = JSON.parse(localStorage.getItem('timerPresets') || '{}');
+    all[name] = preset;
+    localStorage.setItem('timerPresets', JSON.stringify(all));
+    loadPresetDropdown();
+    alert("Preset imported.");
+}
+
+/* ---------------------------------------------------------
+   INITIAL
+--------------------------------------------------------- */
+addTimer();
+updateDisplay();
+</script>
+
+</body>
+</html>
