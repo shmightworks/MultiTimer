@@ -19,9 +19,9 @@
 
     #display {
         width: 100%;
-        font-size: 64px;
+        font-size: 150px;
         text-align: center;
-        padding: 20px;
+        padding: 100px;
         margin-top: 5px;
         color: #000;
         background: #f0f0f0;
@@ -46,11 +46,75 @@
         background: rgba(0,0,0,0.3);
         transition: width 0.3s linear;
     }
+	/* Make the whole page scrollable but keep timer visible */
+body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Timer display area stays at top */
+#displayTitle,
+#display,
+#progressContainer {
+    flex-shrink: 0;
+}
+
+/* Config section scrolls independently */
+#configSection {
+    overflow-y: auto;
+    margin-top: 20px;
+    padding-bottom: 40px;
+}
+
+/* Mobile-first typography */
+#display {
+    font-size: 14vw; /* scales with screen width */
+    padding: 10vw 0;
+}
+
+#displayTitle {
+    font-size: 6vw;
+}
+
+/* Progress bar height scales on mobile */
+#progressContainer {
+    height: 4vw;
+}
+
+/* Timer blocks spacing */
+.timer {
+    margin-bottom: 20px;
+}
+
+/* Buttons and inputs scale better on mobile */
+input, select, button {
+    font-size: 4vw;
+    padding: 2vw;
+}
+
+/* Desktop overrides */
+@media (min-width: 700px) {
+    #display {
+        font-size: 64px;
+        padding: 20px;
+    }
+    #displayTitle {
+        font-size: 24px;
+    }
+    #progressContainer {
+        height: 20px;
+    }
+    input, select, button {
+        font-size: 16px;
+        padding: 6px;
+    }
+}
 </style>
 </head>
 <body>
 
-<hr>
 <div id="displayTitle"></div>
 <div id="display">00:00</div>
 <div id="progressContainer">
@@ -71,12 +135,12 @@
     <button onclick="loadDefaultPreset('Enbu')" style="float:right;">Load Enbu</button>
 </div>
 
-<hr>
+<div id="configSection">
 
 <h2>Timers</h2>
 <div id="timers"></div>
 <button onclick="addTimer()">Add Timer</button>
-
+</div>
 <script>
 /* ---------------------------------------------------------
    GLOBALS
