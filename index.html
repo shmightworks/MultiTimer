@@ -2,38 +2,47 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Multi Timer</title>
 <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: auto; }
-    .timer { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; border-radius: 6px; }
-    .timer h3 { margin-top: 0; }
-    label { display: block; margin: 4px 0; }
-    button { margin-left: 4px; }
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; }
 
+    body {
+        font-family: Arial, sans-serif;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    /* ── Timer display ── */
     #displayTitle {
-        font-size: 24px;
+        font-size: clamp(18px, 5vw, 28px);
         font-weight: bold;
         text-align: center;
         margin-top: 10px;
+        min-height: 1.4em;
     }
 
     #display {
         width: 100%;
-        font-size: 150px;
+        font-size: clamp(48px, 14vw, 96px);
         text-align: center;
-        padding: 100px;
-        margin-top: 5px;
+        padding: clamp(12px, 4vw, 24px) 20px;
+        margin-top: 6px;
         color: #000;
         background: #f0f0f0;
         cursor: pointer;
         user-select: none;
-        box-sizing: border-box;
         border-radius: 8px;
     }
 
     #progressContainer {
         width: 100%;
-        height: 20px;
+        height: clamp(10px, 2vw, 20px);
         background: #ddd;
         border-radius: 10px;
         overflow: hidden;
@@ -46,71 +55,64 @@
         background: rgba(0,0,0,0.3);
         transition: width 0.3s linear;
     }
-	/* Make the whole page scrollable but keep timer visible */
-body {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-}
 
-/* Timer display area stays at top */
-#displayTitle,
-#display,
-#progressContainer {
-    flex-shrink: 0;
-}
-
-/* Config section scrolls independently */
-#configSection {
-    overflow-y: auto;
-    margin-top: 20px;
-    padding-bottom: 40px;
-}
-
-/* Mobile-first typography */
-#display {
-    font-size: 14vw; /* scales with screen width */
-    padding: 10vw 0;
-}
-
-#displayTitle {
-    font-size: 6vw;
-}
-
-/* Progress bar height scales on mobile */
-#progressContainer {
-    height: 4vw;
-}
-
-/* Timer blocks spacing */
-.timer {
-    margin-bottom: 20px;
-}
-
-/* Buttons and inputs scale better on mobile */
-input, select, button {
-    font-size: 4vw;
-    padding: 2vw;
-}
-
-/* Desktop overrides */
-@media (min-width: 700px) {
-    #display {
-        font-size: 64px;
-        padding: 20px;
+    /* ── Config section ── */
+    #configSection {
+        margin-top: 20px;
+        padding-bottom: 40px;
     }
-    #displayTitle {
-        font-size: 24px;
+
+    /* ── Timer blocks ── */
+    .timer {
+        border: 1px solid #ccc;
+        padding: 12px;
+        margin-bottom: 16px;
+        border-radius: 6px;
     }
-    #progressContainer {
-        height: 20px;
-    }
-    input, select, button {
+
+    label {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin: 6px 0;
         font-size: 16px;
-        padding: 6px;
     }
-}
+
+    input[type="text"],
+    input[type="number"],
+    select {
+        font-size: 16px;   /* 16px prevents iOS zoom-on-focus */
+        padding: 8px 10px;
+        border: 1px solid #bbb;
+        border-radius: 4px;
+    }
+
+    button {
+        font-size: 16px;
+        padding: 8px 14px;
+        min-height: 44px;  /* comfortable touch target */
+        cursor: pointer;
+    }
+
+    h2 { font-size: 20px; margin: 12px 0 8px; }
+    h4 { font-size: 16px; margin: 10px 0 4px; }
+
+    /* ── Preset bar ── */
+    #configSection > div:first-child,
+    body > div:has(button[onclick="savePreset()"]) {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+    }
+
+    /* ── Mobile tweaks ── */
+    @media (max-width: 600px) {
+        body { padding: 12px; }
+        select { width: 60% !important; max-width: 100% !important; }
+        
+    }
 </style>
 </head>
 <body>
@@ -132,7 +134,7 @@ input, select, button {
     <button onclick="exportPreset()">Export Preset</button>
     <button onclick="importPreset()">Import Preset</button>
 
-    <button onclick="loadDefaultPreset('Enbu')" style="float:right;">Load Enbu</button>
+    <button onclick="loadDefaultPreset('Enbu')">Load Enbu</button>
 </div>
 
 <div id="configSection">
@@ -194,11 +196,17 @@ function populateVoiceSelect(select, selectedName) {
 --------------------------------------------------------- */
 function speak(text, voiceName) {
     if (!text) return;
+
     const msg = new SpeechSynthesisUtterance(text);
-    if (voiceName) {
+
+	if (voiceName) {
         const v = voices.find(x => x.name === voiceName);
-        if (v) msg.voice = v;
+        if (v) {
+			msg.voice = v;
+			msg.lang = v.lang;
+		}
     }
+	
     speechSynthesis.speak(msg);
 }
 
@@ -211,39 +219,39 @@ function addTimer(config) {
 
     div.innerHTML = `
         <label>
-            <input type="text" class="tTitle" placeholder="Timer" value="${config?.title ?? ''}">
+            <input type="text" class="tTitle" style="width:100%" placeholder="Timer" value="${config?.title ?? ''}">
         </label>
 
         <label>Duration (sec):
-            <input type="number" class="tTime" value="${config?.time ?? 60}">
+            <input type="number" class="tTime" style="width:70px" value="${config?.time ?? 60}">
         </label>
 
         <label>Background color:
-            <input type="color" class="tColor" value="${config?.color ?? '#ffffff'}">
+            <input type="color" class="tColor" style="width:20px" value="${config?.color ?? '#ffffff'}">
         </label>
 
         <label>
             Voice:
-            <select class="voiceSelect" data-selected="${config?.voice ?? ''}"></select>
+            <select style="width:200px" class="voiceSelect" data-selected="${config?.voice ?? ''}"></select>
         </label>
-
-        <label>Start Prompt:
-            <input type="text" class="tStartText" placeholder="Start" value="${config?.startText ?? ''}">
+		<h4>Prompt</h4>
+        <label>Start:
+            <input type="text" style="width:50%" class="tStartText" placeholder="Start" value="${config?.startText ?? ''}">
             <button class="playStart">▶</button>
         </label>
 
-        <label>End Prompt:
-            <input type="text" class="tEndText" placeholder="Finish" value="${config?.endText ?? ''}">
+        <label>End:
+            <input type="text" style="width:50%" class="tEndText" placeholder="Finish" value="${config?.endText ?? ''}">
             <button class="playEnd">▶</button>
         </label>
 
         <h4>Minute Reminder</h4>
         <label>
-            <input type="checkbox" class="tAnnounce" ${config?.announce ? 'checked' : ''}>
+            <input type="checkbox" style="width:20px" class="tAnnounce" ${config?.announce ? 'checked' : ''}>
             Announce each minute
         </label>
         <label>Reminder text:
-            <input type="text" class="tAnnounceText" value="${config?.announceText ?? 'minutes remaining'}">
+            <input type="text" style="width:50%" class="tAnnounceText" value="${config?.announceText ?? 'minutes remaining'}">
             <button class="playAnnounce">▶</button>
         </label>
 
@@ -251,7 +259,30 @@ function addTimer(config) {
     `;
 
     document.getElementById('timers').appendChild(div);
-    populateVoiceSelect(div.querySelector('.voiceSelect'), config?.voice ?? '');
+    
+	const savedVoiceName = config?.voice ?? "";
+    let finalVoiceName = "";
+
+    if (savedVoiceName) {
+        // 1) Try exact match
+        const exact = voices.find(v => v.name === savedVoiceName);
+        if (exact) {
+            finalVoiceName = exact.name;
+        } else {
+			const savedVoiceNameWithLang = config?.voiceWithLang ?? "";
+            // 2) Fallback: derive lang from savedVoiceName string, then match voices by lang
+            const lang = extractLangFromSavedName(savedVoiceNameWithLang);
+            if (lang) {
+                let sameLang = voices.find(v => v.lang.replace('-','').replace('_','') === lang.replace('-','').replace('_',''));
+                if (sameLang) {
+                    finalVoiceName = sameLang.name;
+                }
+            }
+        }
+    }
+
+    const voiceSelect = div.querySelector('.voiceSelect');
+    populateVoiceSelect(voiceSelect, finalVoiceName);
 
     div.querySelector('.playStart').onclick = () => {
         const txt = div.querySelector('.tStartText').value;
@@ -272,6 +303,13 @@ function addTimer(config) {
     };
 }
 
+function extractLangFromSavedName(savedVoiceName) {
+    if (!savedVoiceName) return null;
+    // Look for patterns like en-US, fr-CA, ja-JP, etc.
+    const match = savedVoiceName.match(/[a-z]{2,3}[-_][A-Za-z]{2}/);
+    return match ? match[0] : null;
+}
+
 /* ---------------------------------------------------------
    COLLECT TIMERS FOR RUNTIME
 --------------------------------------------------------- */
@@ -288,7 +326,8 @@ function collectTimersFromDOM() {
 
             announce: t.querySelector('.tAnnounce').checked,
             announceText: t.querySelector('.tAnnounceText').value,
-            voice: t.querySelector('.voiceSelect').value
+            voice: t.querySelector('.voiceSelect').value,
+			voiceWithLang: t.querySelector('.voiceSelect').selectedOptions[0].text
         });
     });
     return list;
@@ -310,7 +349,8 @@ function collectTimersForSave() {
 
             announce: t.querySelector('.tAnnounce').checked,
             announceText: t.querySelector('.tAnnounceText').value,
-            voice: t.querySelector('.voiceSelect').value
+            voice: t.querySelector('.voiceSelect').value,
+			voiceWithLang: t.querySelector('.voiceSelect').selectedOptions[0].text
         });
     });
     return list;
@@ -569,7 +609,7 @@ function loadDefaultPreset(name){
     switch (name)
     {
         case "Enbu":
-            json = `[{"title":"Preparation","time":10,"color":"#ffffff","startText":"","endText":"","announce":false,"announceText":"minutes remaining","voice":""},{"title":"Walk In","time":10,"color":"#b8b8b8","startText":"入場","endText":"始め","announce":false,"announceText":"minutes remaining","voice":"Google 日本語"},{"title":"Enbu","time":360,"color":"#a3ffa5","startText":"","endText":"","announce":true,"announceText":"minutes remaining","voice":"Google UK English Female"},{"title":"Finish","time":10,"color":"#ff0000","startText":"","endText":"退場","announce":false,"announceText":"minutes remaining","voice":"Google 日本語"}]`;
+            json = `[{"title":"Preparation","time":10,"color":"#ffffff","startText":"","endText":"","announce":false,"announceText":"minutes remaining","voice":"","voiceWithLang":"Default voice"},{"title":"Walk In","time":10,"color":"#b8b8b8","startText":"入場","endText":"始め","announce":false,"announceText":"minutes remaining","voice":"Google 日本語","voiceWithLang":"Google 日本語 (ja-JP)"},{"title":"Enbu","time":360,"color":"#a3ffa5","startText":"","endText":"","announce":true,"announceText":"minutes remaining","voice":"Google UK English Female","voiceWithLang":"Google UK English Female (en-GB)"},{"title":"Finish","time":10,"color":"#ff0000","startText":"","endText":"退場","announce":false,"announceText":"minutes remaining","voice":"Google 日本語","voiceWithLang":"Google 日本語 (ja-JP)"}]`;
             break;
     }
     let preset;
@@ -588,7 +628,6 @@ function loadDefaultPreset(name){
     stopAll();
     document.getElementById('timers').innerHTML = '';
     preset.forEach(cfg => addTimer(cfg));
-    loadVoices();
 }
 
 /* ---------------------------------------------------------
