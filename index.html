@@ -494,14 +494,22 @@ const displayEl = document.getElementById('display');
 displayEl.title = "Press to start/pause, double press to reset";
 displayEl.addEventListener('click', () => {
     if (clickTimeout) return;
-    clickTimeout = setTimeout(() => {
+    clickTimeout = setTimeout(async () => {
         clickTimeout = null;
         if (!isRunning && currentIndex === -1) {
             startSequence(true);
+            await requestWakeLock();
             return;
         }
-        if (isRunning) pauseTimers();
-        else resumeTimers();
+        if (isRunning) {
+            pauseTimers();
+            wakeLock.release();
+            wakeLock = null;
+        }
+        else { 
+            resumeTimers();
+            await requestWakeLock();
+        }
     }, 250);
 });
 
@@ -516,6 +524,8 @@ displayEl.addEventListener('dblclick', () => {
 });
 
 function resetAll() {
+    wakeLock.release();
+    wakeLock = null;
     stopAll();
     timersConfig = collectTimersFromDOM();
     updateDisplay();
@@ -639,6 +649,22 @@ function loadDefaultPreset(name){
     document.getElementById('timers').innerHTML = '';
     preset.forEach(cfg => addTimer(cfg));
 }
+
+// The wake lock sentinel.
+let wakeLock = null;
+
+// Function that attempts to request a screen wake lock.
+const requestWakeLock = async () => {
+  try {
+    wakeLock = await navigator.wakeLock.request();
+    wakeLock.addEventListener('release', () => {
+      console.log('Screen Wake Lock released:', wakeLock.released);
+    });
+    console.log('Screen Wake Lock released:', wakeLock.released);
+  } catch (err) {
+    console.error(`${err.name}, ${err.message}`);
+  }
+};
 
 /* ---------------------------------------------------------
    INITIAL
