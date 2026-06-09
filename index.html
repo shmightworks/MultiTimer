@@ -255,7 +255,11 @@ function addTimer(config) {
             <button class="playAnnounce">▶</button>
         </label>
 
-        <button onclick="this.parentElement.remove()">Remove</button>
+        <div style="margin-top:10px;">
+            <button class="moveUp">▲ Move Up</button>
+            <button class="moveDown">▼ Move Down</button>
+            <button class="removeTimer">Remove</button>
+        </div>
     `;
 
     document.getElementById('timers').appendChild(div);
@@ -306,6 +310,25 @@ function addTimer(config) {
         const rate = div.querySelector('.rateSlider').value;
         const pitch = div.querySelector('.pitchSlider').value;
         speak(`1 ${txt}`, voice, rate, pitch);
+    };
+    
+    // Remove timer
+    div.querySelector('.removeTimer').onclick = () => {
+        div.remove();
+    };
+
+    // Move timer up
+    div.querySelector('.moveUp').onclick = () => {
+        const parent = div.parentElement;
+        const prev = div.previousElementSibling;
+        if (prev) parent.insertBefore(div, prev);
+    };
+
+    // Move timer down
+    div.querySelector('.moveDown').onclick = () => {
+        const parent = div.parentElement;
+        const next = div.nextElementSibling;
+        if (next) parent.insertBefore(next, div);
     };
 }
 
