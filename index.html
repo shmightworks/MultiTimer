@@ -131,16 +131,32 @@
     <button onclick="deletePreset()">Delete Preset</button>
     <button onclick="exportPreset()">Export Preset</button>
     <button onclick="importPreset()">Import Preset</button>
-
-    
 </div>
 
 <div id="configSection">
-
-<h2>Timers</h2>
-<div id="timers"></div>
-<button onclick="addTimer()">Add Timer</button>
+    <h2>Timers</h2>
+    <div id="timers"></div>
+    <button onclick="addTimer()">Add Timer</button>
 </div>
+
+<footer style="margin-top:40px;padding:20px; text-align:center;font-size:14px;color:#555;border-top:1px solid #ccc;">
+    <div>Created by <strong>Shmightworks</strong></div>
+
+    <div style="margin-top:6px;">
+        <a href="https://github.com/shmightworks/MultiTimer" target="_blank">
+            GitHub
+        </a>
+    </div>
+
+    <div style="margin-top:6px;">
+        <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="shmightworks" data-color="#FFDD00" data-emoji=""  data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
+    </div>
+
+    <div style="margin-top:6px; font-size:12px; opacity:0.7;">
+        © <span id="year"></span> All rights reserved.
+    </div>
+</footer>
+
 <script>
 /* ---------------------------------------------------------
    GLOBALS
@@ -694,33 +710,6 @@ const requestWakeLock = async () => {
 --------------------------------------------------------- */
 addTimer();
 updateDisplay();
-</script>
-<footer style="
-    margin-top:40px;
-    padding:20px;
-    text-align:center;
-    font-size:14px;
-    color:#555;
-    border-top:1px solid #ccc;
-">
-    <div>Created by <strong>Shmightworks</strong></div>
-
-    <div style="margin-top:6px;">
-        <a href="https://github.com/shmightworks/MultiTimer" target="_blank">
-            GitHub
-        </a>
-    </div>
-
-    <div style="margin-top:6px;">
-        <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="shmightworks" data-color="#FFDD00" data-emoji=""  data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
-    </div>
-
-    <div style="margin-top:6px; font-size:12px; opacity:0.7;">
-        © <span id="year"></span> All rights reserved.
-    </div>
-</footer>
-
-<script>
 document.getElementById("year").textContent = new Date().getFullYear();
 </script>
 </body>
